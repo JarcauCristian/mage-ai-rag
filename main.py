@@ -13,6 +13,7 @@ logging.basicConfig(level=logging.DEBUG, filemode='w', format='%(name)s - %(leve
 
 load_dotenv("./.env")
 ollama_client = Client(os.getenv("OLLAMA_URL"))
+db_path_exists = os.path.exists("./db")
 chroma_client = chromadb.PersistentClient(path="./db")
 ingester = Ingester(ollama_client, os.getenv("OLLAMA_EMBED_MODEL"), os.getenv("TOKENIZER"), 1024)
 rag = RAGPipeline(os.getenv("OLLAMA_URL"), os.getenv("OLLAMA_MODEL"), ollama_client, os.getenv("OLLAMA_EMBED_MODEL"), chroma_client, os.getenv("CHROMA_COLLECTION"))
@@ -41,8 +42,11 @@ def clean_files(dir: str):
             with open(path, 'w') as w:
                 w.write(res)
 
+
+
+
 if __name__ == "__main__":
-    if not os.path.exists("./db"):
+    if not db_path_exists:
         for path in Path("./").glob("*"):
             if path.is_dir() and path.name in ["loaders", "transforms", "exporters", "sensors"]:
                 load_and_store(path, path.name)

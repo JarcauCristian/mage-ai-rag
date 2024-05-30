@@ -11,6 +11,7 @@ class Ingester:
         self.embed_model = ollama_embed_model
         self.tokenizer = Tokenizer.from_pretrained(tokenizer)
         self.splitter: TextSplitter = TextSplitter.from_huggingface_tokenizer(self.tokenizer, capacity=max_tokens, trim=True)
+    
     def chunk_it(self, text: str) -> list[str]:
         chunks = self.splitter.chunks(text)
         return chunks
@@ -19,6 +20,7 @@ class Ingester:
         chunks = self.chunk_it(text)
         for chunk in chunks:
             id = uuid.uuid4().hex
+            print(id)
             embed = self.client.embeddings(self.embed_model, chunk)["embedding"]
             collection.add([id], [embed], documents=[chunk], metadatas=[{"source": filename, "block_type": block_type}])
 
