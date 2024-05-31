@@ -1,7 +1,5 @@
 import os
-import re
-import ast
-import json
+import yaml
 import logging
 import chromadb
 from pathlib import Path
@@ -29,6 +27,18 @@ def load_and_store(directory: str, block_type: str) -> None:
             ingester.ingest(file_content, path.name, block_type, chroma_client, os.getenv("CHROMA_COLLECTION"))
 
 
+def preprocess_yaml_string(yaml_string):
+    # Ensure consistent indentation and format issues are resolved
+    lines = yaml_string.split('\n')
+    processed_lines = []
+    for line in lines:
+        if "|" in line:
+            processed_lines.append('  ' + line.strip())
+        else:
+            processed_lines.append(line)
+    return '\n'.join(processed_lines)
+
+
 if __name__ == "__main__":
     if not db_path_exists:
         for p in Path("./").glob("*"):
@@ -37,16 +47,9 @@ if __name__ == "__main__":
 
     result = rag.invoke("Can you build me a pipeline that will get a dataset from the following MySQL database: host -> 62.72.21.79, port -> 5432, database -> postgres, table -> iris, username -> postgres, password -> postgres. For this table remove each row that has a number of empty columns greater than 75 percent. Exported it back as a CSV with name iris.csv.")
     logging.critical(result["source_documents"])
-    try:
-        string: str = result["result"]
-        string = string.replace('\\', '\\\\').replace('\"\"\"', '\\\"\\\"\\\"')
-        parsed_dict = ast.literal_eval(string)
-
-        for key, value in parsed_dict.items():
-            print(key)
-            with open(f"./outputs/{key}.py", 'w') as output:
-                output.write(value.replace('\\n', '\n'))
-    except json.decoder.JSONDecodeError as e:
-        logging.error(e)
-        print("Error:", e)
- 
+    string = preprocess_yaml_string(result["result"])
+    parsed_data = yaml.safe_load(string)
+    for block_name, code in parsed_data.items():
+        file_path = os.path.join("output", f"{block_name}.py")
+        with open(file_path, 'w') as file:
+            file.write(code.strip())
