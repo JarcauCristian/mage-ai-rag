@@ -1,6 +1,7 @@
 from ollama import Client
 from typing import Sequence
 
+
 class Embed:
     def __init__(self, ollama_client: Client, embed_model: str) -> None:
         self.ollama_client = ollama_client

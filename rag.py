@@ -1,6 +1,7 @@
 from embed import Embed
 from ollama import Client
 from typing import Dict, Any
+from utils import return_filter
 from chromadb import PersistentClient
 from langchain_community.llms.ollama import Ollama
 from langchain_community.vectorstores import Chroma
@@ -26,40 +27,25 @@ class RAGPipeline:
         )
         self.rag = RetrievalQA.from_chain_type(
             self.ollama_llm,
-            retriever=self.db_retriever.as_retriever(),
+            retriever=self.db_retriever.as_retriever(search_type="mmr", search_kwargs={"k": 5}),
             return_source_documents=True,
         )
 
-    def build_prompt(self, data):
+    @staticmethod
+    def build_prompt(data):
         return '''
-            You are an expert in building MageAI ETL pipelines by interconnecting loader, transformer, exporter, and sensor blocks to create the ideal pipeline based on the description received from the user.
-
-            **Instructions:**
-
-            1. **Output Format**: Return the Python code for each block in the exact MageAI format as a dictionary. The dictionary should have random block names as keys and the Python code for each block as values. Return only the dictionary and no additional text.
-
-            2. **Block Templates**: 
-            - Use the default MageAI templates for loader, transformer, exporter, and sensor blocks.
-            - If the block type requested is already available in the templates, adjust it according to the user's requirements.
-            - Otherwise, use the default.py template and build upon it.
-
-            3. **Code Format**: Output all the code inside the retrived templates or the default.py file only add additional functionallity inside the functions with the decorators:
-            - @data_loader
-            - @transformer
-            - @data_exporter
-            - @sensor
-
-            **Example Output**:
+            You are an expert at build Mage AI ETL pipelines, by interconnecting Mage AI formated loader, transformer, exporter and sensor blocks to create an ideal pipeline based on the description of the user.
+            You must return the output as dictionary where the keys are the names of blocks and the values is the Python Code for that specific block, based on the template with additional modifications if needed.
+            You must and are obligated to provide only the dictionary as the output without any other words beside the dictionary.
+            **Example Output**
             {{
-                "loader": "from mage_ai.data_preparation.decorators import data_loader\\nimport pandas as pd\\n\\n@data_loader\\ndef load_data(*args, **kwargs):\\n    return pd.read_csv('path_to_csv_file.csv')\\n",
-                "remove_null_columns": "from mage_ai.data_preparation.decorators import transformer\\n\\n@transformer\\ndef remove_null_columns(df, *args, **kwargs):\\n    return df.dropna(axis=1, how='all')\\n",
-                "exporter": "from mage_ai.data_preparation.decorators import data_exporter\\n\\n@data_exporter\\ndef export_data(df, *args, **kwargs):\\n    df.to_csv('exported_file.csv', index=False)\\n"
+                "loader": "from mage_ai.io.file import FileIO\nif 'data_loader' not in globals():\n    from mage_ai.data_preparation.decorators import data_loader\n\n@data_loader\ndef load_data_from_file(*args, **kwargs):\n    """\n    Template for loading data from filesystem.\n    Load data from 1 file or multiple file directories.\n\n    For multiple directories, use the following:\n        FileIO().load(file_directories=['dir_1', 'dir_2'])\n\n    Docs: https://docs.mage.ai/design/data-loading#fileio\n    """\n    filepath = 'path/to/your/file.csv'\n\n    return FileIO().load(filepath)",
+                "transformer": "if 'transformer' not in globals():\n    from mage_ai.data_preparation.decorators import transformer\nif 'test' not in globals():\n    from mage_ai.data_preparation.decorators import test\n\n@transformer\ndef remove_columns_with_missing_values(data, *args, **kwargs):\n    threshold = 0.5 if kwargs.get('threshold') is not None else kwargs.get('threshold')\n    return data.loc[:, data.isnull().mean() < threshold]\n\n@test\ndef test_output(output, *args) -> None:\n    assert output is not None, 'The output is undefined'",
+                "exporter": "from mage_ai.io.file import FileIO\nfrom pandas import DataFrame\n\nif 'data_exporter' not in globals():\n    from mage_ai.data_preparation.decorators import data_exporter\n\n@data_exporter\ndef export_data_to_file(df: DataFrame, **kwargs) -> None:\n    """\n    Template for exporting data to filesystem.\n\n    Docs: https://docs.mage.ai/design/data-loading#fileio\n    """\n    filepath = 'path/to/write/dataframe/to.csv'\n    FileIO().export(df, filepath)"
             }}
-            You must not add anything besides the dictionary, not a single word only the dictionary as presented in the Example Output section. Also, you must be sure that what is returned from a block is only a pandas DataFrame, and you must adhere to the rules presented above very strictly, any deviation from them will be punished. 
+            
             Here is the description for the pipeline:
             {}  
-
-            You will find each indivudual block from the pipeline listed below:
         '''.format(
             data
         )

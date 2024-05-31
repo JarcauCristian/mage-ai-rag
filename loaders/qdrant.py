@@ -3,7 +3,8 @@ from mage_ai.io.config import ConfigFileLoader
 from mage_ai.io.qdrant import Qdrant
 from sentence_transformers import SentenceTransformer
 from os import path
-
+if 'data_loader' not in globals():
+    from mage_ai.data_preparation.decorators import data_loader
 
 DEFAULT_MODEL = 'all-MiniLM-L6-v2'
 

@@ -1,4 +1,5 @@
 import uuid
+import logging
 import chromadb
 from ollama import Client
 from tokenizers import Tokenizer
@@ -10,7 +11,7 @@ class Ingester:
         self.client = ollama_client
         self.embed_model = ollama_embed_model
         self.tokenizer = Tokenizer.from_pretrained(tokenizer)
-        self.splitter: TextSplitter = TextSplitter.from_huggingface_tokenizer(self.tokenizer, capacity=max_tokens, trim=True)
+        self.splitter: TextSplitter = TextSplitter.from_huggingface_tokenizer(self.tokenizer, capacity=max_tokens, overlap=50, trim=True)
     
     def chunk_it(self, text: str) -> list[str]:
         chunks = self.splitter.chunks(text)
@@ -19,10 +20,10 @@ class Ingester:
     def embed_and_store(self, collection: chromadb.Collection, text: str, filename: str, block_type: str) -> None:
         chunks = self.chunk_it(text)
         for chunk in chunks:
-            id = uuid.uuid4().hex
-            print(id)
+            uid = uuid.uuid4().hex
+            logging.info(id)
             embed = self.client.embeddings(self.embed_model, chunk)["embedding"]
-            collection.add([id], [embed], documents=[chunk], metadatas=[{"source": filename, "block_type": block_type}])
+            collection.add([uid], [embed], documents=[chunk], metadatas=[{"source": filename, "block_type": block_type}])
 
     def ingest(
         self,
