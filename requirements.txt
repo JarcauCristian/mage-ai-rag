@@ -4,9 +4,11 @@ langchain_community==0.2.1
 numpy==1.26.4
 ollama==0.2.0
 pandas==2.2.2
-python-dotenv==1.0.1
+python-dotenv~=1.0.0
 rapidfuzz==3.9.2
-Requests==2.32.3
+Requests~=2.31.0
 semantic_text_splitter==0.13.1
 sentence_transformers==3.0.0
 tokenizers==0.19.1
+PyYAML~=6.0.1
+nltk~=3.8.1

@@ -31,11 +31,22 @@ def preprocess_yaml_string(yaml_string):
     # Ensure consistent indentation and format issues are resolved
     lines = yaml_string.split('\n')
     processed_lines = []
-    for line in lines:
+    found = False
+    count = 0
+    for i, line in enumerate(lines):
+        if count == 2 and i < len(lines):
+            break
+        if "`" in line:
+            count += 1
+            continue
         if "|" in line:
+            found = True
             processed_lines.append('  ' + line.strip())
+        elif not found:
+            continue
         else:
-            processed_lines.append(line)
+            processed_lines.append('    ' + line)
+
     return '\n'.join(processed_lines)
 
 
@@ -45,9 +56,11 @@ if __name__ == "__main__":
             if p.is_dir() and p.name in ["loaders", "transforms", "exporters", "sensors"]:
                 load_and_store(p.__str__(), p.name)
 
-    result = rag.invoke("Can you build me a pipeline that will get a dataset from the following MySQL database: host -> 62.72.21.79, port -> 5432, database -> postgres, table -> iris, username -> postgres, password -> postgres. For this table remove each row that has a number of empty columns greater than 75 percent. Exported it back as a CSV with name iris.csv.")
+    result = rag.invoke("Can you build me a pipeline that will get a dataset from the following MySQL database: host -> 62.72.21.79, port -> 5432, database -> postgres, table -> iris, username -> postgres, password -> postgres. For this table remove each row that has a number of empty columns greater than 75 percent. After that impute the remaining missing values using KNNImputer. At the end exported it back as a CSV with name iris.csv.")
     logging.critical(result["source_documents"])
+    print(result["result"])
     string = preprocess_yaml_string(result["result"])
+    print(string)
     parsed_data = yaml.safe_load(string)
     for block_name, code in parsed_data.items():
         file_path = os.path.join("output", f"{block_name}.py")

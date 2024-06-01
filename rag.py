@@ -1,8 +1,8 @@
 from embed import Embed
 from ollama import Client
 from typing import Dict, Any
-from utils import return_filter
 from chromadb import PersistentClient
+from feature_extractor import FeatureExtractor
 from langchain_community.llms.ollama import Ollama
 from langchain_community.vectorstores import Chroma
 from langchain.chains.retrieval_qa.base import RetrievalQA
@@ -25,22 +25,29 @@ class RAGPipeline:
             collection_name=chroma_collection_name,
             embedding_function=self.embeddings,
         )
+        self.extractor = FeatureExtractor()
         self.rag = RetrievalQA.from_chain_type(
             self.ollama_llm,
-            retriever=self.db_retriever.as_retriever(search_type="mmr", search_kwargs={"k": 5}),
+            retriever=self.db_retriever.as_retriever(search_type="mmr", search_kwargs={"k": 4, "fetch_k": 10}),
             return_source_documents=True,
         )
 
     @staticmethod
     def build_prompt(data):
         return '''
-            You are an expert at build Mage AI ETL pipelines, by interconnecting Mage AI formated loader, transformer, exporter and sensor blocks to create an ideal pipeline based on the description of the user.
-            You must return the output as a YAML kind object where the keys are the names of blocks and the values is the Python Code for that specific block, based on the template with additional modifications if needed.
-            You must and are obligated to provide only the YAML kind object as the output without any other words beside the YAML kind object, like in the **Example Output** section.
+            You are an expert at build Mage AI ETL pipelines, by interconnecting Mage AI formatted loader, transformer, exporter blocks to create an ideal pipeline based on the description of the user.
+            You must return the output as an YAML object, exactly in the format provided inside **Example output** section.
+            All the python code should strictly adhere to the Mage AI block templates based on block type, and inside the decorated function add all the necessary addition to the code, including imports.
             **Example Output**
-            loader: "from mage_ai.io.file import FileIO\nif 'data_loader' not in globals():\n    from mage_ai.data_preparation.decorators import data_loader\n\n@data_loader\ndef load_data_from_file(*args, **kwargs):\n    """\n    Template for loading data from filesystem.\n    Load data from 1 file or multiple file directories.\n\n    For multiple directories, use the following:\n        FileIO().load(file_directories=['dir_1', 'dir_2'])\n\n    Docs: https://docs.mage.ai/design/data-loading#fileio\n    """\n    filepath = 'path/to/your/file.csv'\n\n    return FileIO().load(filepath)",
-            transformer: "if 'transformer' not in globals():\n    from mage_ai.data_preparation.decorators import transformer\nif 'test' not in globals():\n    from mage_ai.data_preparation.decorators import test\n\n@transformer\ndef remove_columns_with_missing_values(data, *args, **kwargs):\n    threshold = 0.5 if kwargs.get('threshold') is not None else kwargs.get('threshold')\n    return data.loc[:, data.isnull().mean() < threshold]\n\n@test\ndef test_output(output, *args) -> None:\n    assert output is not None, 'The output is undefined'",
-            exporter: "from mage_ai.io.file import FileIO\nfrom pandas import DataFrame\n\nif 'data_exporter' not in globals():\n    from mage_ai.data_preparation.decorators import data_exporter\n\n@data_exporter\ndef export_data_to_file(df: DataFrame, **kwargs) -> None:\n    """\n    Template for exporting data to filesystem.\n\n    Docs: https://docs.mage.ai/design/data-loading#fileio\n    """\n    filepath = 'path/to/write/dataframe/to.csv'\n    FileIO().export(df, filepath)"
+            ```
+            loader: |
+                <Python Code>
+            random_name: |
+                <Python Code>
+            ...
+            exporter: |
+                <Python Code>
+            ```
             
             Here is the description for the pipeline:
             {}  
@@ -49,4 +56,10 @@ class RAGPipeline:
         )
 
     def invoke(self, description: str) -> Dict[str, Any]:
+        _ = self.extractor.extract(description)
+        self.rag = RetrievalQA.from_chain_type(
+            self.ollama_llm,
+            retriever=self.db_retriever.as_retriever(search_type="mmr", search_kwargs={'k': 6, 'lambda_mult': 0.4}),
+            return_source_documents=True,
+        )
         return self.rag.invoke({"query": self.build_prompt(description)})
