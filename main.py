@@ -1,5 +1,5 @@
 import os
-import yaml
+import time
 import utils
 import logging
 import chromadb
@@ -36,8 +36,9 @@ if __name__ == "__main__":
             if p.is_dir() and p.name in ["loaders", "transformers", "exporters"]:
                 load_and_store(p.__str__(), p.name)
 
-    query = "Can you build me a pipeline that will get a dataset from the following MySQL database: host -> 62.72.21.79, port -> 5432, database -> postgres, table -> iris, username -> postgres, password -> postgres :: For this table remove each row that has a number of empty columns greater than 75 percent :: After that impute the remaining missing values using KNNImputer :: At the end exported it back as a CSV file with name iris.csv."
+    query = "Can you give me a block that will load a dataset from the following MySQL database: host -> 62.72.21.79, port -> 5432, database -> postgres, table -> iris, username -> postgres, password -> postgres."
     entries = query.split("::")
+    print(entries)
     flt = {"$and": [{"block_type": {"$in": []}}, {"source": {"$in": []}}]}
     for i, entry in enumerate(entries):
         if i == 0:
@@ -52,13 +53,15 @@ if __name__ == "__main__":
         flt["$and"][0]["block_type"]["$in"].append(output["block_type"])
         flt["$and"][1]["source"]["$in"].append(output["source"])
 
-    result = rag.invoke(query, flt)
-    logging.critical(result["source_documents"])
-    print(result["result"])
-    string = utils.preprocess_yaml_string(result["result"])
-    print(string)
-    parsed_data = yaml.safe_load(string)
-    for block_name, code in parsed_data.items():
-        file_path = os.path.join("output", f"{block_name}.py")
-        with open(file_path, 'w') as file:
-            file.write(code.strip())
+    for i in range(5):
+        result = rag.invoke(query, flt)
+        logging.critical(result["source_documents"])
+        print(result["result"])
+        string = utils.preprocess_yaml_string(result["result"])
+        print(string)
+        time.sleep(30)
+    # parsed_data = yaml.safe_load(string)
+    # for block_name, code in parsed_data.items():
+    #     file_path = os.path.join("output", f"{block_name}.py")
+    #     with open(file_path, 'w') as file:
+    #         file.write(code.strip())

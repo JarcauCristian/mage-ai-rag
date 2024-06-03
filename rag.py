@@ -17,7 +17,7 @@ class RAGPipeline:
         chroma_client: PersistentClient,
         chroma_collection_name: str,
     ) -> None:
-        self.ollama_llm = Ollama(base_url=ollama_url, model=ollama_model, temperature=0.2)
+        self.ollama_llm = Ollama(base_url=ollama_url, model=ollama_model, temperature=0.1)
         self.embeddings = Embed(ollama_client, ollama_embed_model)
         self.db_retriever = Chroma(
             client=chroma_client,
@@ -33,23 +33,16 @@ class RAGPipeline:
     @staticmethod
     def build_prompt(data):
         return '''
-            You are an expert at build Mage AI ETL pipelines, by interconnecting Mage AI formatted loader, transformer, exporter blocks to create an ideal pipeline based on the description of the user.
-            You must return the output as an YAML object, exactly in the format provided inside **Example output** section, without any other information beside it.
-            All the python code should strictly adhere to the Mage AI block templates based on block type, and inside the decorated function add all the necessary addition to the code, including imports.
+            You are an expert in creating MageAI blocks based on the description received by the user.
+            You must return the the Python code for the block as an YAML object, exactly in the format provided inside **Example output** section, without any other information beside it.
+            All the python code should strictly adhere to the Mage AI block templates based on block type which is inferred from the description, and inside the decorated function add all the necessary addition to the code, including imports.
             **Example Output**
             ```
             random_name: |
                 <Python Code>
-            random_name: |
-                <Python Code>
-            random_name: |
-                <Python Code>
-            ...
-            random_name: |
-                <Python Code>
             ```
             
-            Here is the description for the pipeline:
+            Here is the description of the block
             {}  
         '''.format(
             data
