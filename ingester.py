@@ -1,5 +1,4 @@
 import uuid
-import time
 import logging
 import chromadb
 from ollama import Client
@@ -7,16 +6,6 @@ from tokenizers import Tokenizer
 from typing import Set, Dict, Any
 from semantic_text_splitter import TextSplitter
 from sklearn.feature_extraction.text import CountVectorizer
-
-
-def timeit(func):
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        print(f"Function {func.__name__} took {end_time - start_time:.2f} seconds!")
-        return result
-    return wrapper
 
 
 class Ingester:
@@ -64,7 +53,6 @@ class Ingester:
         similarity = len(common_keywords) / len(query_keywords.union(doc_keywords))
         return similarity
 
-    @timeit
     def retrieve_specific(self, collection: str, query: str, block_type: str) -> Dict[str, Any]:
         collection: chromadb.Collection = self.chroma_client.get_or_create_collection(collection)
         documents = collection.get(include=["documents", "metadatas"])
