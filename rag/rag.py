@@ -1,5 +1,5 @@
-from embed import Embed
 from ollama import Client
+from rag.embed import Embed
 from typing import Dict, Any
 from chromadb import PersistentClient
 from langchain_community.llms.ollama import Ollama
@@ -31,7 +31,7 @@ class RAGPipeline:
         )
 
     @staticmethod
-    def build_prompt(data):
+    def build_prompt(data: str) -> str:
         return '''
             You are an expert in creating MageAI blocks based on the description received by the user.
             You must return the the Python code for the block as an YAML object, exactly in the format provided inside **Example output** section, without any other information beside it.

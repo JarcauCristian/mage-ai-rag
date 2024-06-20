@@ -1,8 +1,7 @@
 import os
 import logging
-import time
 from pathlib import Path
-from ingester import Ingester
+from rag.ingester import Ingester
 
 
 def clean_files(directory: str) -> None:
@@ -23,7 +22,7 @@ def clean_files(directory: str) -> None:
 
 def add_loaders(directory: str, ingester: Ingester) -> None:
     etl_loader_descriptions = {
-        "default.py": "Template code for loading data from any source, returning any type of data such as data frame, dictionary, array, int, or string.",
+        "default.py": "Default loader block which can be shaped in any way by",
         "api.py": "Template for loading data from an API, using requests to fetch data and returning it as a pandas DataFrame.",
         "file.py": "Template for loading data from the filesystem, either from a single file or multiple file directories, using Mage's FileIO.",
         "bigquery.py": "Template for loading data from a BigQuery warehouse, with configuration settings specified in 'io_config.yaml'.",
@@ -34,10 +33,10 @@ def add_loaders(directory: str, ingester: Ingester) -> None:
         "google_sheets.py": "Template for loading data from a Google Sheets worksheet, with configuration settings specified in 'io_config.yaml'.",
         "azure_blob_storage.py": "Template for loading data from Azure Blob Storage, with configuration settings specified in 'io_config.yaml'.",
         "mssql.py": "Template for loading data from a MSSQL database, with configuration settings specified in 'io_config.yaml'.",
-        "mysql.py": "Template for loading data from a MySQL database, with configuration settings specified in 'io_config.yaml'.",
+        "mysql.py": "Loader block for loading data from a table present in a MySQL database, with configuration settings specified by the user.",
         "oracledb.py": "Template for loading data from an OracleDB database, with configuration settings specified in 'io_config.yaml'.",
         "pinot.py": "Template for loading data from a Pinot warehouse, with configuration settings specified in 'io_config.yaml'.",
-        "postgres.py": "Template for loading data from a PostgreSQL database, with configuration settings specified in 'io_config.yaml'.",
+        "postgres.py": "Loader block for loading data from a table present in a PostgreSQL database, with configuration settings specified by the user.",
         "qdrant.py": "Template for loading data from Qdrant, using SentenceTransformer for query vector generation.",
         "redshift.py": "Template for loading data from a Redshift cluster, with configuration settings specified in 'io_config.yaml'.",
         "s3.py": "Template for loading data from an S3 bucket, with configuration settings specified in 'io_config.yaml'.",
@@ -115,7 +114,19 @@ def add_exporters(directory: str, ingester: Ingester) -> None:
                         os.getenv("CHROMA_COLLECTION"))
 
 
-def preprocess_yaml_string(yaml_string):
+def add_configs(directory: str, ingester: Ingester) -> None:
+    for path in Path(directory).rglob("*.yaml"):
+        print("Creating embeddings for %s" % path.name)
+        logging.info("Creating embeddings for %s" % path.name)
+
+        with open(path, "r") as f:
+            file_content = f.read()
+
+        ingester.ingest(file_content, path.name, "config", "Config file containing connections to various data loaders.",
+                        os.getenv("CHROMA_COLLECTION"))
+
+
+def preprocess_yaml_string(yaml_string: str) -> str:
     lines = yaml_string.split('\n')
     processed_lines = []
     found = False

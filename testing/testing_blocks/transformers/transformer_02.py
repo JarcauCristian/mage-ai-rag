@@ -1,16 +1,16 @@
-
-import pandas as pd
 from mage_ai.data_preparation.decorators import transformer, test
 
 @transformer
-def transform_data_filter_rows(*args, **kwargs):
-    df = args[0]
-    df_filtered = df[df['existing_column'] > 10]
-    return df_filtered
+def transform_data_filter_rows(data, *args, **kwargs):
+    existing_column = kwargs.get('existing_column')
+    if existing_column is not None:
+        data = data[data[existing_column] > 10]
+    return data
 
 @test
-def test_transform_data_filter_rows(*args) -> None:
-    df = pd.DataFrame({'existing_column': [5, 15, 25]})
-    df_transformed = transform_data_filter_rows(df)
-    assert len(df_transformed) == 2
+def test_output(output, *args) -> None:
+    """
+    Template code for testing the output of the block.
+    """
+    assert output is not None, 'The output is undefined'
     

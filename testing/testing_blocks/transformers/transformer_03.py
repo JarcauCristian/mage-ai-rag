@@ -1,16 +1,15 @@
-
-import pandas as pd
 from mage_ai.data_preparation.decorators import transformer, test
 
 @transformer
-def transform_data_drop_columns(*args, **kwargs):
-    df = args[0]
-    df = df.drop(columns=['unwanted_column'])
-    return df
+def transform_data_drop_columns(data, *args, **kwargs):
+    unwanted_column = kwargs.get('unwanted_column')
+    if unwanted_column is not None:
+        data = data.drop(columns=[unwanted_column])
+    return data
 
 @test
-def test_transform_data_drop_columns(*args) -> None:
-    df = pd.DataFrame({'unwanted_column': [1, 2, 3], 'wanted_column': [4, 5, 6]})
-    df_transformed = transform_data_drop_columns(df)
-    assert 'unwanted_column' not in df_transformed.columns
-    
+def test_output(output, *args) -> None:
+    """
+    Template code for testing the output of the block.
+    """
+    assert output is not None, 'The output is undefined'

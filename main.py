@@ -1,15 +1,15 @@
 import os
 import yaml
-import utils
 import uvicorn
 import logging
 import chromadb
 from pathlib import Path
 from schemas import Query
 from ollama import Client
-from rag import RAGPipeline
+from rag.rag import RAGPipeline
+from rag import utils
 from typing import Dict, Any
-from ingester import Ingester
+from rag.ingester import Ingester
 from dotenv import load_dotenv
 from pydantic import ValidationError
 from contextlib import asynccontextmanager
@@ -25,18 +25,21 @@ logging.basicConfig(level=logging.DEBUG, filemode='w', format='%(name)s - %(leve
 async def lifespan(_):
     global ing, rag
     ollama_client = Client(os.getenv("OLLAMA_URL"))
+    db_path_exists = os.path.exists("db")
     chroma_client = chromadb.PersistentClient("./db")
     ing = Ingester(ollama_client, chroma_client, os.getenv("OLLAMA_EMBED_MODEL"), os.getenv("TOKENIZER"), int(os.getenv("MAX_TOKENS")))
 
-    if not os.path.exists("./db"):
+    if not db_path_exists:
         for p in Path("./blocks").glob("*"):
-            if p.is_dir() and p.name in ["loaders", "transformers", "exporters"]:
+            if p.is_dir() and p.name in ["loaders", "transformers", "exporters", "configs"]:
                 if p.name == "loaders":
-                    utils.add_loaders(p.name, ing)
+                    utils.add_loaders(p.__str__(), ing)
                 elif p.name == "transformers":
-                    utils.add_transformers(p.name, ing)
+                    utils.add_transformers(p.__str__(), ing)
                 elif p.name == "exporters":
-                    utils.add_exporters(p.name, ing)
+                    utils.add_exporters(p.__str__(), ing)
+                elif p.name == "configs":
+                    utils.add_configs(p.__str__(), ing)
 
     rag = RAGPipeline(os.getenv("OLLAMA_URL"), os.getenv("OLLAMA_MODEL"), ollama_client,
                       os.getenv("OLLAMA_EMBED_MODEL"), chroma_client, os.getenv("CHROMA_COLLECTION"))
@@ -85,10 +88,14 @@ async def get_model_response(query: Query) -> Dict[str, Any]:
 
     output = ing.retrieve_specific(os.getenv("CHROMA_COLLECTION"), query.description, query.block_type)
 
+    # if query.block_type == "loader":
+    #     flt["$and"][0]["block_type"]["$in"].append("config")
+    #     flt["$and"][1]["source"]["$in"].append(f"{output['source'].split('.')[0]}.yaml")
+
     flt["$and"][0]["block_type"]["$in"].append(output["block_type"])
     flt["$and"][1]["source"]["$in"].append(output["source"])
 
-    print("Sending request to model!")
+    print(f"Sending request to model with filter {flt}!")
     result = rag.invoke(query.description, flt)
 
     string = utils.preprocess_yaml_string(result["result"])
@@ -101,21 +108,3 @@ async def get_model_response(query: Query) -> Dict[str, Any]:
 
 if __name__ == "__main__":
     uvicorn.run(app, host='0.0.0.0')
-
-    # query = "Can you give me a block that will load a dataset from the following MySQL database: host -> 62.72.21.79, port -> 5432, database -> postgres, table -> iris, username -> postgres, password -> postgres."
-    # entries = query.split("::")
-    # print(entries)
-
-    #
-    # for i in range(5):
-    #     result = rag.invoke(query, flt)
-    #     logging.critical(result["source_documents"])
-    #     print(result["result"])
-    #     string = utils.preprocess_yaml_string(result["result"])
-    #     print(string)
-    #     time.sleep(30)
-    # parsed_data = yaml.safe_load(string)
-    # for block_name, code in parsed_data.items():
-    #     file_path = os.path.join("output", f"{block_name}.py")
-    #     with open(file_path, 'w') as file:
-    #         file.write(code.strip())
